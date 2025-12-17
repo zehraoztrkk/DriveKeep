@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>DriveKeep Akıllı Takip Sistemi - Dashboard</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <style>
+        /* DriveKeep Renk Paleti ve Stil İyileştirmeleri */
+        :root {
+            --primary-color: #007bff;
+            --success-color: #28a745;
+            --warning-color: #ffc107;
+            --danger-color: #dc3545;
+            --dark-color: #343a40;
+            --light-bg: #f8f9fa;
+        }
+
+        body {
+            background-color: var(--light-bg);
+        }
+        
+        /* Başlık stili */
+        .dashboard-header {
+            color: var(--dark-color);
+            border-bottom: 3px solid var(--primary-color);
+            padding-bottom: 10px;
+            margin-bottom: 30px !important;
+            font-weight: 700;
+        }
+
+        /* Haritanın görünür olması için yeterli yükseklik */
+        #mapid { height: 600px; width: 100%; margin-bottom: 20px; border: 1px solid #ddd; border-radius: 8px; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); }
+        .card { border-radius: 8px; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05); }
+        
+        .card-title { font-weight: bold; color: var(--dark-color); }
+        .data-value { font-size: 2.5em; font-weight: 700; }
+        
+        /* Renk kartları */
+        #active-rentals-count + .data-value { color: var(--primary-color); }
+        #low-battery-count + .data-value { color: var(--danger-color); }
+
+        /* KRİTİK DÜZELTME: Tüm tablo hücrelerini dikey olarak ortalamak için! */
+        #active-rentals-table tbody td {
+            vertical-align: middle !important; 
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid pt-4">
+        <h1 class="dashboard-header"><i class="fas fa-route"></i> DriveKeep Akıllı Takip Sistemi</h1>
+        
+        <div class="row">
+            
+            <div class="col-md-8">
+                <div id="mapid"></div> 
+                
+                <h5 class="mt-4 text-secondary"><i class="fas fa-clipboard-list"></i> Aktif Kiralamalar (Detay)</h5>
+                
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover align-middle" id="active-rentals-table"> 
+                        <thead class="bg-primary text-white">
+                            <tr>
+                                <th>ID</th>        
+                                <th>Araç Modeli</th>
+                                <th>Kullanıcı</th> 
+                                <th>Süre (Dk)</th> 
+                                <th>Fiyat (TL)</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                
+                <div class="card mb-3 border-primary">
+                    <div class="card-body">
+                        <h5 class="card-title">Kiralama Geçmişi</h5>
+                        <div class="data-value" id="active-rentals-count">0</div>
+                        
+                        <div id="active-rental-list-container">
+                        </div>
+
+                    </div>
+                </div>
+
+                <div class="card mb-3 border-danger">
+                    <div class="card-body">
+                        <h5 class="card-title text-danger">Şarj Gerektiren Scooter (<20%)</h5>
+                        <div class="data-value text-danger" id="low-battery-count">0</div>
+                        
+                        <div id="low-battery-list-container">
+                        </div>
+
+                    </div>
+                </div>
+                
+                <h3 class="mt-4 text-secondary"><i class="fas fa-search-location"></i> En Yakın Müsait Araç Sonucu</h3>
+                <div id="closest-vehicles" class="alert alert-info border-primary">
+                    Haritada bir noktaya tıklayarak en yakın 3 aracı bulun.
+                </div>
+            </div>
+        </div>
+    </div>
+
+<div class="modal fade" id="rentalModal" tabindex="-1" role="dialog" aria-labelledby="rentalModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="rentalModalLabel">Kiralama Detaylarını Girin</h5>
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Kapat">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p><strong>Araç ID:</strong> <span id="modal-arac-id"></span></p>
+                <div class="form-group">
+                    <label for="modal-user-name">Kullanıcı Adı:</label>
+                    <input type="text" class="form-control" id="modal-user-name" placeholder="Ad Soyad Giriniz">
+                </div>
+                <div class="form-group">
+                    <label for="modal-duration">Tahmini Süre (Dakika):</label>
+                    <input type="number" class="form-control" id="modal-duration" value="30" min="10" step="5">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">İptal</button>
+                <button type="button" class="btn btn-success" onclick="confirmRentalModal()">Kiralamayı Başlat</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js"></script>
+<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+<script src="app.js"></script> 
+</body>
+</html>

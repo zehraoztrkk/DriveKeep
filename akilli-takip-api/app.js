@@ -58,13 +58,13 @@ function createVehicleIcon(vehicle) {
     const iconHtml = `
         <div style="
             background-color: ${color}; 
-            width: 30px; 
-            height: 30px; 
+            width: 40px; 
+            height: 40px; 
             border-radius: 50%;
-            border: 2px solid white; 
+            border: 3px solid white; 
             text-align: center;
-            line-height: 28px;
-            font-size: 16px; 
+            line-height: 34px;
+            font-size: 24px; 
             color: white; 
             box-shadow: 0 2px 4px rgba(0,0,0,0.4);
             opacity: ${opacity}; 
@@ -76,8 +76,8 @@ function createVehicleIcon(vehicle) {
     return L.divIcon({ 
         className: 'custom-vehicle-icon',
         html: iconHtml, 
-        iconSize: [30, 30], 
-        popupAnchor: [0, -15] 
+        iconSize: [40, 40], 
+        popupAnchor: [0, -20] 
     });
 }
 
@@ -108,17 +108,95 @@ function requestRentalDetails(aracId) {
     }
 }
 
-// Kiralama Onayı (Simülasyon)
-function confirmRental(aracId) {
-    const userName = document.getElementById('rentalUser').value || 'Anonim Kullanıcı';
-    alert(`Kiralama Başlatıldı!\nAraç: ID ${aracId}\nKullanıcı: ${userName}`);
-    
-    map.closePopup();
-    // Veriler değiştiği için harita ve dashboard yenilenmeli
-    loadVehicleMarkers(); 
-    loadDashboardData(); 
+// Modal açıldığında Araç ID'sini aktaran fonksiyon
+
+function openRentalModal(aracId) {
+
+    document.getElementById('modal-arac-id').textContent = aracId;
+
+    // Formu temizle
+
+    document.getElementById('modal-user-name').value = '';
+
 }
 
+
+
+// Kiralama Onayı (Simülasyon - Tabloya Geçici Ekleme) - BURAYA YAPIŞTIRDIN
+
+function confirmRentalModal() {
+
+    const aracId = document.getElementById('modal-arac-id').textContent;
+
+    const userName = document.getElementById('modal-user-name').value;
+
+    const mode = document.getElementById('modal-mode').value;
+
+
+
+    if (!userName.trim()) {
+
+        alert('Lütfen kullanıcı adınızı giriniz.');
+
+        return;
+
+    }
+
+
+
+    const tbody = document.getElementById('active-rentals-table').getElementsByTagName('tbody')[0];
+
+   
+
+    // 1. Yeni satırı oluştur (Stil vermiyoruz, diğerleriyle aynı kalsın)
+
+    let row = tbody.insertRow(0);
+
+   
+
+    // 2. Değerleri diğer satırların formatına göre hazırla
+
+    const modelMetni = `Sürüş Başladı (${mode})`;
+
+    const baslangicSuresi = "0 dk";
+
+    const baslangicFiyati = "10.00 TL";
+
+
+
+    // 3. Sütunları doldur (Düz metin olarak, badge veya bold etiketleri olmadan)
+
+    row.insertCell(0).textContent = aracId;           // ID sütunu
+
+    row.insertCell(1).textContent = modelMetni;      // Araç Modeli sütunu
+
+    row.insertCell(2).textContent = userName;         // Kullanıcı sütunu
+
+    row.insertCell(3).textContent = baslangicSuresi;  // Süre sütunu
+
+    row.insertCell(4).textContent = baslangicFiyati;  // Fiyat sütunu
+
+
+
+    // 4. Sayaç rakamını güncelle
+
+    const countElement = document.getElementById('active-rentals-count');
+
+    countElement.textContent = parseInt(countElement.textContent || 0) + 1;
+
+
+
+    // 5. Modalı kapat ve temizle
+
+    $('#rentalModal').modal('hide');
+
+    document.getElementById('modal-user-name').value = '';
+
+
+
+    console.log(`Kiralama eklendi: ${aracId}`);
+
+}
 
 // 3. API'den Veri Çekme ve Haritada Gösterme
 async function loadVehicleMarkers() {
@@ -283,138 +361,78 @@ map.on('click', async (e) => {
 
 // 5. Rapor Verilerini Yükleme (KARTLARIN ALTINA LİSTE OLUŞTURMA İŞLEMİ)
 async function loadDashboardData() {
-    const activeRentalsPromise = fetch(`${API_URL}/kiralamalar/aktif`).then(res => res.json()).catch(err => { console.error("Aktif Kiralama API Hatası:", err); return []; });
-    const lowBatteryPromise = fetch(`${API_URL}/bakim/dusuk-batarya`).then(res => res.json()).catch(err => { console.error("Düşük Batarya API Hatası:", err); return []; });
-
     try {
-        const [activeRentals, lowBatteryVehicles] = await Promise.all([activeRentalsPromise, lowBatteryPromise]);
+        // API'den verileri çekiyoruz
+        const activeRentalsPromise = fetch(`${API_URL}/kiralamalar/aktif`).then(res => res.json()).catch(() => []);
+        const completedRentalsPromise = fetch(`${API_URL}/kiralamalar/gecmis`).then(res => res.json()).catch(() => []);
+        const lowBatteryPromise = fetch(`${API_URL}/bakim/dusuk-batarya`).then(res => res.json()).catch(() => []);
 
-        // KART BİLGİLERİ GÜNCELLEMESİ (SAYILAR)
-        document.getElementById('active-rentals-count').textContent = Array.isArray(activeRentals) ? activeRentals.length : 0;
-        document.getElementById('low-battery-count').textContent = Array.isArray(lowBatteryVehicles) ? lowBatteryVehicles.length : 0;
-        
-        // AKTİF KİRALAMALAR TABLOSU GÜNCELLEMESİ (ID Sütunu)
+        const [activeRentals, completedRentals, lowBatteryVehicles] = await Promise.all([
+            activeRentalsPromise, 
+            completedRentalsPromise, 
+            lowBatteryPromise
+        ]);
+
+        // --- 1. SAĞ PANEL: KİRALAMA GEÇMİŞİ (BİTMİŞ SÜRÜŞLER) ---
+        document.getElementById('active-rentals-count').textContent = completedRentals.length;
+        const listContainer = document.getElementById('active-rental-list-container');
+        listContainer.innerHTML = ''; 
+
+        if (completedRentals.length > 0) {
+            const ul = document.createElement('ul');
+            ul.className = 'list-group list-group-flush mt-2';
+
+            completedRentals.forEach(rental => {
+                let modelName = rental.kiralanan_arac ? rental.kiralanan_arac.replace(/\s*\(\d+\)$/, '') : "Bilinmiyor";
+                const li = document.createElement('li');
+                li.className = 'list-group-item d-flex justify-content-between align-items-center p-1 bg-transparent';
+                li.style.fontSize = '0.9em';
+                li.innerHTML = `
+                    <div><strong>ID ${rental.arac_id}:</strong> ${modelName}</div>
+                    <span class="text-muted">Kiralayan: ${rental.kiralayan_kullanici}</span>
+                `;
+                ul.appendChild(li);
+            });
+            listContainer.appendChild(ul);
+        } else {
+            listContainer.innerHTML = '<div class="p-2 text-muted small">Henüz tamamlanan sürüş yok.</div>';
+        }
+
+        // --- 2. ALT TABLO: AKTİF SÜRÜŞLER (SADECE bitis_zamani NULL OLANLAR) ---
         const tbody = document.getElementById('active-rentals-table').getElementsByTagName('tbody')[0];
         tbody.innerHTML = '';
-        
-        if (Array.isArray(activeRentals)) {
-            activeRentals.forEach(rental => { 
-                let row = tbody.insertRow();
-                
-                // 1. SÜTUN: Araç ID
-                row.insertCell().textContent = rental.arac_id; 
-                
-                // 2. SÜTUN: Araç Modeli (Temizlik uygulanıyor)
-                let modelName = rental.kiralanan_arac;
-                if (/\(\d+\)$/.test(modelName)) { // Eğer model adında parantez içinde ID varsa onu sil
-                    modelName = modelName.replace(/\s*\(\d+\)$/, ''); 
-                }
-                row.insertCell().textContent = modelName;
-                
-                // 3. SÜTUN: Kiralayan Kullanıcı
-                row.insertCell().textContent = rental.kiralayan_kullanici;
-                
-                // 4. SÜTUN: Süre (Dakika)
-                row.insertCell().textContent = `${rental.sure_dakika} dk`; 
-                
-                // 5. SÜTUN: Tahmini Fiyat
-                row.insertCell().textContent = rental.tahmini_fiyat; 
-            });
-        }
-        
-        // --- AKTİF KİRALAMA DETAY LİSTESİ OLUŞTURULMASI (Tüm Araçlar İçin - MODEL TEMİZLİĞİ EKLENDİ) ---
-        const activeRentalListContainer = document.getElementById('active-rental-list-container');
-        let activeRentalDetailList = document.getElementById('active-rental-detail-list');
 
-        if (activeRentalListContainer) {
-            if (!activeRentalDetailList) {
-                activeRentalDetailList = document.createElement('ul');
-                activeRentalDetailList.id = 'active-rental-detail-list';
-                activeRentalDetailList.className = 'list-group list-group-flush mt-2';
-                activeRentalListContainer.appendChild(activeRentalDetailList);
-            }
+        activeRentals.forEach(rental => { 
+            let row = tbody.insertRow();
+            row.insertCell().textContent = rental.arac_id; 
+            let modelName = rental.kiralanan_arac ? rental.kiralanan_arac.replace(/\s*\(\d+\)$/, '') : "Bilinmiyor";
+            row.insertCell().textContent = modelName;
+            row.insertCell().textContent = rental.kiralayan_kullanici;
+            row.insertCell().textContent = `${rental.sure_dakika || 0} dk`; 
+            row.insertCell().textContent = rental.tahmini_fiyat || "0.00 TL"; 
+        });
 
-            activeRentalDetailList.innerHTML = ''; 
-
-            if (Array.isArray(activeRentals) && activeRentals.length > 0) {
-                // Tüm aktif kiralamaları listele
-                activeRentals.forEach(rental => {
-                    
-                    // KRİTİK TEMİZLİK: Parantez içindeki ID'yi model adından kaldırıyoruz.
-                    let cleanedModelName = rental.kiralanan_arac;
-                    if (/\s*\(\d+\)$/.test(cleanedModelName)) {
-                        cleanedModelName = cleanedModelName.replace(/\s*\(\d+\)$/, ''); 
-                    }
-                    
-                    const listItem = document.createElement('li');
-                    listItem.className = 'list-group-item d-flex justify-content-between align-items-center p-1 bg-transparent';
-                    listItem.style.fontSize = '0.9em';
-                    
-                    // ID, TEMİZLENMİŞ MODEL ve Kullanıcı
-                    listItem.innerHTML = `
-                        <div>
-                            <strong>ID ${rental.arac_id}:</strong> ${cleanedModelName} 
-                        </div>
-                        <span>Kiralayan: ${rental.kiralayan_kullanici}</span>
-                    `;
-                    activeRentalDetailList.appendChild(listItem);
-                });
-            } else {
-                const listItem = document.createElement('li');
-                listItem.className = 'list-group-item p-1 bg-transparent text-primary';
-                listItem.textContent = 'Şu anda aktif kiralama bulunmamaktadır.';
-                activeRentalDetailList.appendChild(listItem);
-            }
-        }
-        // --- AKTİF KİRALAMA DETAY LİSTESİ SONU ---
-
-        
-        // --- DÜŞÜK BATARYA DETAY LİSTESİ OLUŞTURULMASI (SADELEŞTİRİLMİŞ & TEMİZLENMİŞ VERSİYON) ---
+        // --- 3. SAĞ PANEL ALT: DÜŞÜK BATARYA ---
+        document.getElementById('low-battery-count').textContent = lowBatteryVehicles.length;
         const lowBatteryListContainer = document.getElementById('low-battery-list-container');
+        lowBatteryListContainer.innerHTML = ''; 
 
-        if (lowBatteryListContainer) {
-            // Geçici olarak listeyi doğrudan HTML konteyneri içine yazıyoruz
-            lowBatteryListContainer.innerHTML = ''; 
-
-            if (Array.isArray(lowBatteryVehicles) && lowBatteryVehicles.length > 0) {
-                
-                let listHtml = '<ul class="list-group list-group-flush mt-2">';
-                
-                // TÜM DÜŞÜK BATARYALI ARAÇLARI LİSTELEMEK İÇİN
-                lowBatteryVehicles.forEach(vehicle => {
-                    
-                    // KRİTİK TEMİZLİK: Parantez içindeki ID'yi model adından kaldırıyoruz.
-                    let cleanedModelName = vehicle.model;
-                    if (/\s*\(\d+\)$/.test(cleanedModelName)) {
-                        cleanedModelName = cleanedModelName.replace(/\s*\(\d+\)$/, ''); 
-                    }
-                    
-                    // Batarya yüzdesini direkt tam sayı olarak alıyoruz
-                    const batteryPct = Math.round(vehicle.batarya_seviyesi); 
-                    
-                    listHtml += `
-                        <li class="list-group-item d-flex justify-content-between align-items-center p-1 bg-transparent" style="font-size: 0.9em;">
-                            <div>
-                                <strong>ID ${vehicle.arac_id}:</strong> ${cleanedModelName}
-                            </div>
-                            <span class="badge badge-danger badge-pill">${batteryPct}%</span>
-                        </li>
-                    `;
-                });
-                
-                listHtml += '</ul>';
-                lowBatteryListContainer.innerHTML = listHtml; // HTML'i tek seferde yazıyoruz
-                
-            } else {
-                // Düşük bataryalı araç yoksa gösterilecek mesaj
-                lowBatteryListContainer.innerHTML = `
-                    <div class="list-group mt-2">
-                        <li class="list-group-item p-1 text-success" style="font-size: 0.9em;">Tüm scooterlar yeterli şarja sahip.</li>
-                    </div>
-                `;
-            }
+        if (lowBatteryVehicles.length > 0) {
+            let listHtml = '<ul class="list-group list-group-flush mt-2">';
+            lowBatteryVehicles.forEach(vehicle => {
+                let cleanedModelName = vehicle.model ? vehicle.model.replace(/\s*\(\d+\)$/, '') : "Bilinmiyor";
+                const batteryPct = Math.round(vehicle.batarya_seviyesi); 
+                listHtml += `
+                    <li class="list-group-item d-flex justify-content-between align-items-center p-1 bg-transparent" style="font-size: 0.9em;">
+                        <div><strong>ID ${vehicle.arac_id}:</strong> ${cleanedModelName}</div>
+                        <span class="badge badge-danger badge-pill">${batteryPct}%</span>
+                    </li>`;
+            });
+            listHtml += '</ul>';
+            lowBatteryListContainer.innerHTML = listHtml;
+        } else {
+            lowBatteryListContainer.innerHTML = '<div class="p-1 text-success small">Tüm araçlar şarjlı.</div>';
         }
-        // --- DÜŞÜK BATARYA DETAY LİSTESİ SONU ---
         
     } catch (error) {
         console.error("Genel Rapor Yükleme Hatası:", error);
@@ -427,3 +445,4 @@ loadDashboardData();
 // Otomatik güncellemeleri başlat
 setInterval(loadVehicleMarkers, 60000); 
 setInterval(loadDashboardData, 30000);
+

@@ -2,11 +2,13 @@
 <html>
 <head>
     <title>DriveKeep Akıllı Takip Sistemi - Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
     <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    
     <style>
-        /* DriveKeep Renk Paleti ve Stil İyileştirmeleri */
+        /* DriveKeep Renk Paleti */
         :root {
             --primary-color: #007bff;
             --success-color: #28a745;
@@ -16,8 +18,11 @@
             --light-bg: #f8f9fa;
         }
 
+        /* Ana Konteyner ve Arka Plan */
         body {
-            background-color: var(--light-bg);
+            background: radial-gradient(circle at top right, #fdfdfd, #f0f2f5);
+            font-family: 'Inter', sans-serif;
+            min-height: 100vh;
         }
         
         /* Başlık stili */
@@ -29,20 +34,145 @@
             font-weight: 700;
         }
 
-        /* Haritanın görünür olması için yeterli yükseklik */
-        #mapid { height: 600px; width: 100%; margin-bottom: 20px; border: 1px solid #ddd; border-radius: 8px; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); }
-        .card { border-radius: 8px; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05); }
-        
-        .card-title { font-weight: bold; color: var(--dark-color); }
-        .data-value { font-size: 2.5em; font-weight: 700; }
-        
-        /* Renk kartları */
-        #active-rentals-count + .data-value { color: var(--primary-color); }
-        #low-battery-count + .data-value { color: var(--danger-color); }
+        /* Harita Tasarımı */
+        #mapid { 
+            height: 600px; 
+            width: 100%; 
+            margin-bottom: 20px; 
+            border: none; 
+            border-radius: 16px; 
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08); 
+        }
 
-        /* KRİTİK DÜZELTME: Tüm tablo hücrelerini dikey olarak ortalamak için! */
-        #active-rentals-table tbody td {
-            vertical-align: middle !important; 
+        /* Kartların Tasarımı */
+        .card {
+            border: none;
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+            transition: transform 0.3s ease;
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(10px);
+            margin-bottom: 20px;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+        }
+
+        .card-title { 
+            font-weight: 700; 
+            color: var(--dark-color);
+            font-size: 1.1rem;
+        }
+        
+        /* Sayısal Verilerin Vurgulanması */
+        .data-value {
+            font-size: 3rem;
+            letter-spacing: -2px;
+            font-weight: 700;
+            background: linear-gradient(45deg, var(--primary-color), #00d2ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        /* Liste Öğeleri (Geçmiş ve Batarya) */
+        .list-group-item {
+            border: none;
+            margin-bottom: 8px;
+            border-radius: 12px !important;
+            background: #f8f9fa;
+            transition: all 0.2s ease;
+            font-size: 0.9rem;
+        }
+
+        .list-group-item:hover {
+            background: #eef2f7;
+            padding-left: 15px !important;
+            color: var(--primary-color);
+        }
+
+        /* Tablo Tasarımı */
+        .table {
+            border-collapse: separate;
+            border-spacing: 0 10px;
+        }
+
+        .table thead th {
+            border: none;
+            text-transform: uppercase;
+            font-size: 0.75rem;
+            letter-spacing: 1px;
+            color: var(--dark-color);
+            padding: 10px 15px;
+        }
+
+        .table tbody tr {
+            background: white;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+            border-radius: 12px;
+            transition: all 0.2s ease;
+        }
+
+        /* --- YENİ EKLENEN TABLO HOVER VE STICKY HEADER ÖZELLİKLERİ --- */
+        #active-rentals-table tbody tr {
+            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+            cursor: pointer;
+        }
+
+        #active-rentals-table tbody tr:hover {
+            background-color: #ffffff !important;
+            transform: scale(1.01); /* Hafif büyüme efekti */
+            box-shadow: 0 8px 20px rgba(0, 123, 255, 0.12); /* Mavi tonlu yumuşak gölge */
+            z-index: 10;
+            position: relative;
+        }
+
+        /* Hücrelerin üzerine gelince yazı rengini biraz koyulaştır */
+        #active-rentals-table tbody tr:hover td {
+            color: var(--primary-color);
+            font-weight: 600;
+        }
+
+        .table-responsive {
+            max-height: 400px;
+            overflow-y: auto;    /* Sadece dikey kaydırmaya izin ver */
+            overflow-x: hidden;  /* Yatay kaydırmayı tamamen engelle */
+            border-radius: 12px; /* Kenarları yumuşat */
+        }
+        /* Tablonun genişliğini sabitle */
+        #active-rentals-table {
+            width: 100% !important;
+            table-layout: fixed; /* Sütun genişliklerini zorla sığdırır */
+            margin-bottom: 0;
+        }
+
+        /* Hücrelerdeki uzun metinlerin tabloyu taşırmaması için */
+        #active-rentals-table td {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis; /* Metin çok uzunsa sonuna üç nokta ekler */
+        }
+
+        #active-rentals-table thead th {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background-color: var(--primary-color) !important;
+            color: white; /* Başlık metni beyaz olsun */
+        }
+        /* --- EKLEMELER SONU --- */
+
+        .table td {
+            border: none;
+            padding: 15px !important;
+            vertical-align: middle !important;
+        }
+
+        /* Renk kartları özel durumları */
+        .border-danger .data-value {
+            background: linear-gradient(45deg, var(--danger-color), #ff6b6b);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
         }
     </style>
 </head>
@@ -51,17 +181,16 @@
         <h1 class="dashboard-header"><i class="fas fa-route"></i> DriveKeep Akıllı Takip Sistemi</h1>
         
         <div class="row">
-            
             <div class="col-md-8">
                 <div id="mapid"></div> 
                 
-                <h5 class="mt-4 text-secondary"><i class="fas fa-clipboard-list"></i> Aktif Kiralamalar (Detay)</h5>
+                <h5 class="mt-4 text-secondary"><i class="fas fa-clipboard-list"></i> Aktif Kiralamalar</h5>
                 
                 <div class="table-responsive">
-                    <table class="table table-sm table-hover align-middle" id="active-rentals-table"> 
-                        <thead class="bg-primary text-white">
+                    <table class="table table-hover" id="active-rentals-table"> 
+                        <thead>
                             <tr>
-                                <th>ID</th>        
+                                <th>ID</th>         
                                 <th>Araç Modeli</th>
                                 <th>Kullanıcı</th> 
                                 <th>Süre (Dk)</th> 
@@ -74,69 +203,89 @@
             </div>
 
             <div class="col-md-4">
-                
-                <div class="card mb-3 border-primary">
+                <div class="card border-primary">
                     <div class="card-body">
                         <h5 class="card-title">Kiralama Geçmişi</h5>
                         <div class="data-value" id="active-rentals-count">0</div>
-                        
-                        <div id="active-rental-list-container">
-                        </div>
-
+                        <div id="active-rental-list-container"></div>
                     </div>
                 </div>
 
-                <div class="card mb-3 border-danger">
+                <div class="card border-danger">
                     <div class="card-body">
                         <h5 class="card-title text-danger">Şarj Gerektiren Scooter (<20%)</h5>
-                        <div class="data-value text-danger" id="low-battery-count">0</div>
-                        
-                        <div id="low-battery-list-container">
-                        </div>
-
+                        <div class="data-value" id="low-battery-count">0</div>
+                        <div id="low-battery-list-container"></div>
                     </div>
                 </div>
                 
-                <h3 class="mt-4 text-secondary"><i class="fas fa-search-location"></i> En Yakın Müsait Araç Sonucu</h3>
-                <div id="closest-vehicles" class="alert alert-info border-primary">
+                <h3 class="mt-4 text-secondary" style="font-size: 1.2rem; font-weight: 700;">
+                    <i class="fas fa-search-location"></i> En Yakın Müsait Araç Sonucu
+                </h3>
+                <div id="closest-vehicles" class="alert alert-info border-0 shadow-sm" style="border-radius: 12px; background: white; color: var(--dark-color);">
                     Haritada bir noktaya tıklayarak en yakın 3 aracı bulun.
                 </div>
             </div>
         </div>
     </div>
 
-<div class="modal fade" id="rentalModal" tabindex="-1" role="dialog" aria-labelledby="rentalModalLabel" aria-hidden="true">
-    <div class="modal-dialog" role="document">
-        <div class="modal-content">
-            <div class="modal-header bg-primary text-white">
-                <h5 class="modal-title" id="rentalModalLabel">Kiralama Detaylarını Girin</h5>
-                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Kapat">
-                    <span aria-hidden="true">&times;</span>
-                </button>
-            </div>
-            <div class="modal-body">
-                <p><strong>Araç ID:</strong> <span id="modal-arac-id"></span></p>
-                <div class="form-group">
-                    <label for="modal-user-name">Kullanıcı Adı:</label>
-                    <input type="text" class="form-control" id="modal-user-name" placeholder="Ad Soyad Giriniz">
+    <div class="modal fade" id="rentalModal" tabindex="-1" role="dialog" aria-labelledby="rentalModalLabel" aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content" style="border-radius: 16px; border: none;">
+                <div class="modal-header bg-primary text-white" style="border-radius: 16px 16px 0 0;">
+                    <h5 class="modal-title" id="rentalModalLabel">Kiralama Detaylarını Girin</h5>
+                    <button type="button" class="close text-white" data-dismiss="modal" aria-label="Kapat">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
                 </div>
-                <div class="form-group">
-                    <label for="modal-duration">Tahmini Süre (Dakika):</label>
-                    <input type="number" class="form-control" id="modal-duration" value="30" min="10" step="5">
+                <div class="modal-body">
+                    <p><strong>Araç ID:</strong> <span id="modal-arac-id"></span></p>
+                    <div class="form-group">
+                        <label for="modal-user-name">Kullanıcı Adı:</label>
+                        <input type="text" class="form-control" id="modal-user-name" placeholder="Ad Soyad Giriniz" style="border-radius: 10px;">
+                    </div>
+                    <div class="form-group">
+                        <label for="modal-mode">Sürüş Modu:</label>
+                        <select class="form-control" id="modal-mode" style="border-radius: 10px;">
+                            <option value="Eko">Eko (Düşük Hız - Tasarruflu)</option>
+                            <option value="Standart" selected>Standart (İdeal)</option>
+                            <option value="Spor">Spor (Maksimum Performans)</option>
+                        </select>
+                    </div>
                 </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-dismiss="modal">İptal</button>
-                <button type="button" class="btn btn-success" onclick="confirmRentalModal()">Kiralamayı Başlat</button>
+                <div class="modal-footer" style="border: none;">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal" style="border-radius: 10px;">İptal</button>
+                    <button type="button" class="btn btn-success" onclick="confirmRentalModal()" style="border-radius: 10px;">Kiralamayı Başlat</button>
+                </div>
             </div>
         </div>
     </div>
-</div>
 
-<script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js"></script>
-<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
-<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-<script src="app.js"></script> 
+    <div class="modal fade" id="successModal" tabindex="-1" role="dialog" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered" role="document">
+            <div class="modal-content border-0 shadow-lg" style="border-radius: 20px;">
+                <div class="modal-header bg-success text-white" style="border-radius: 20px 20px 0 0;">
+                    <h5 class="modal-title"><i class="fas fa-check-circle"></i> İşlem Başarılı</h5>
+                    <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body text-center p-4">
+                    <h4 class="text-success" style="font-weight: 700;">Kiralama Başlatıldı!</h4>
+                    <p class="text-secondary">Sürüşünüz güvenli ve keyifli geçsin.</p>
+                    <i class="fas fa-scooter fa-4x text-success mb-3"></i>
+                </div>
+                <div class="modal-footer border-0">
+                    <button type="button" class="btn btn-outline-success btn-block" data-dismiss="modal" style="border-radius: 12px; font-weight: 600;">Anladım</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script src="app.js"></script> 
 </body>
 </html>

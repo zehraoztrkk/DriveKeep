@@ -16,13 +16,28 @@
             --danger-color: #dc3545;
             --dark-color: #343a40;
             --light-bg: #f8f9fa;
+            --bg-color: #fdfdfd;
+            --bg-gradient: radial-gradient(circle at top right, #fdfdfd, #f0f2f5);
+            --text-color: #000;
+            --card-bg: rgba(255, 255, 255, 0.9);
+            --border-color: #ddd;
+        }
+
+        body.dark-mode {
+            --bg-color: #0f1419;
+            --bg-gradient: linear-gradient(135deg, #1a2847, #0f1419);
+            --text-color: #d4dce6;
+            --card-bg: rgba(26, 40, 71, 0.9);
+            --border-color: #365a99;
         }
 
         /* Ana Konteyner ve Arka Plan */
         body {
-            background: radial-gradient(circle at top right, #fdfdfd, #f0f2f5);
+            background: var(--bg-gradient);
             font-family: 'Inter', sans-serif;
             min-height: 100vh;
+            color: var(--text-color);
+            transition: all 0.3s ease;
         }
         
         /* Başlık stili */
@@ -50,9 +65,10 @@
             border-radius: 16px;
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
             transition: transform 0.3s ease;
-            background: rgba(255, 255, 255, 0.9);
+            background: var(--card-bg);
             backdrop-filter: blur(10px);
             margin-bottom: 20px;
+            border: 1px solid var(--border-color);
         }
 
         .card:hover {
@@ -85,6 +101,11 @@
             font-size: 0.9rem;
         }
 
+        body.dark-mode .list-group-item {
+            background: #2d2d4a;
+            color: #e0e0e0;
+        }
+
         .list-group-item:hover {
             background: #eef2f7;
             padding-left: 15px !important;
@@ -111,6 +132,20 @@
             box-shadow: 0 4px 12px rgba(0,0,0,0.03);
             border-radius: 12px;
             transition: all 0.2s ease;
+        }
+
+        body.dark-mode .table tbody tr {
+            background: #2d2d4a;
+            color: #e0e0e0;
+        }
+
+        body.dark-mode .table thead th {
+            background-color: var(--primary-color) !important;
+            color: white;
+        }
+
+        body.dark-mode .table td {
+            color: #e0e0e0;
         }
 
         /* --- YENİ EKLENEN TABLO HOVER VE STICKY HEADER ÖZELLİKLERİ --- */
@@ -174,11 +209,134 @@
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
         }
+
+        /* Dark Mode Toggle Switch */
+        .dark-mode-toggle {
+            position: relative;
+            display: inline-block;
+            width: 80px;
+            height: 40px;
+            background-color: #ccc;
+            border-radius: 40px;
+            cursor: pointer;
+            border: none;
+            padding: 0;
+            transition: all 0.3s ease;
+        }
+
+        .dark-mode-toggle::after {
+            content: '';
+            position: absolute;
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            background-color: white;
+            top: 3px;
+            left: 3px;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        .dark-mode-toggle:hover {
+            background-color: #bbb;
+        }
+
+        body.dark-mode .dark-mode-toggle {
+            background-color: var(--primary-color);
+        }
+
+        body.dark-mode .dark-mode-toggle::after {
+            left: 43px;
+        }
+
+        .toggle-icon {
+            position: absolute;
+            font-size: 18px;
+            top: 50%;
+            transform: translateY(-50%);
+            z-index: 2;
+            transition: all 0.3s ease;
+        }
+
+        .toggle-icon.sun {
+            left: 10px;
+            color: #999;
+        }
+
+        .toggle-icon.moon {
+            right: 10px;
+            color: #999;
+            opacity: 0;
+        }
+
+        body.dark-mode .toggle-icon.sun {
+            opacity: 0;
+        }
+
+        body.dark-mode .toggle-icon.moon {
+            opacity: 1;
+        }
+
+        /* Modal Dark Mode */
+        body.dark-mode .modal-content {
+            background-color: #2d2d4a;
+            color: #e0e0e0;
+        }
+
+        body.dark-mode .modal-header {
+            border-bottom: 1px solid #444;
+        }
+
+        body.dark-mode .form-control,
+        body.dark-mode .form-control:focus,
+        body.dark-mode select {
+            background-color: #1a1a2e;
+            color: #e0e0e0;
+            border-color: #444;
+        }
+
+        body.dark-mode .form-control:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+        }
+
+        body.dark-mode label {
+            color: #e0e0e0;
+        }
+
+        body.dark-mode .alert-light {
+            background-color: #1a1a2e;
+            color: #e0e0e0;
+        }
+
+        /* Closest Vehicles Alert Dark Mode */
+        body.dark-mode #closest-vehicles {
+            background-color: rgba(38, 54, 88, 0.8) !important;
+            color: #d4dce6 !important;
+            border: 1px solid #365a99 !important;
+        }
+
+        /* Modal Backdrop Dark Mode */
+        body.dark-mode .modal-backdrop {
+            background-color: rgba(15, 20, 25, 0.9) !important;
+        }
+
+        body.dark-mode .modal-backdrop.show {
+            opacity: 0.8 !important;
+        }
     </style>
 </head>
 <body>
     <div class="container-fluid pt-4">
-        <h1 class="dashboard-header"><i class="fas fa-route"></i> DriveKeep Akıllı Takip Sistemi</h1>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
+            <h1 class="dashboard-header" style="margin-bottom: 0;"><i class="fas fa-route"></i> DriveKeep Akıllı Takip Sistemi</h1>
+            <div style="display: flex; align-items: center;">
+                <button class="dark-mode-toggle" onclick="toggleDarkMode()" title="Dark Mode Toggle">
+                    <i class="fas fa-sun toggle-icon sun"></i>
+                    <i class="fas fa-moon toggle-icon moon"></i>
+                </button>
+            </div>
+        </div>
         
         <div class="row">
             <div class="col-md-8">
@@ -195,6 +353,7 @@
                                 <th>Kullanıcı</th> 
                                 <th>Süre (Dk)</th> 
                                 <th>Fiyat (TL)</th>
+                                <th>İşlem</th>
                             </tr>
                         </thead>
                         <tbody></tbody>
@@ -245,6 +404,14 @@
                         <input type="text" class="form-control" id="modal-user-name" placeholder="Ad Soyad Giriniz" style="border-radius: 10px;">
                     </div>
                     <div class="form-group">
+                        <label for="modal-user-email">E-Mail:</label>
+                        <input type="email" class="form-control" id="modal-user-email" placeholder="E-Mail Adresiniz" style="border-radius: 10px;">
+                    </div>
+                    <div class="form-group">
+                        <label for="modal-user-phone">Telefon:</label>
+                        <input type="tel" class="form-control" id="modal-user-phone" placeholder="Telefon Numarası" style="border-radius: 10px;">
+                    </div>
+                    <div class="form-group">
                         <label for="modal-mode">Sürüş Modu:</label>
                         <select class="form-control" id="modal-mode" style="border-radius: 10px;">
                             <option value="Eko">Eko (Düşük Hız - Tasarruflu)</option>
@@ -261,22 +428,123 @@
         </div>
     </div>
 
-    <div class="modal fade" id="successModal" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal fade" id="confirmEndRentalModal" tabindex="-1" role="dialog" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered" role="document">
             <div class="modal-content border-0 shadow-lg" style="border-radius: 20px;">
-                <div class="modal-header bg-success text-white" style="border-radius: 20px 20px 0 0;">
-                    <h5 class="modal-title"><i class="fas fa-check-circle"></i> İşlem Başarılı</h5>
+                <div class="modal-header bg-primary text-white" style="border-radius: 20px 20px 0 0;">
+                    <h5 class="modal-title"><i class="fas fa-exclamation-circle"></i> Kiralama Bitirme Onayı</h5>
                     <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
                         <span aria-hidden="true">&times;</span>
                     </button>
                 </div>
-                <div class="modal-body text-center p-4">
-                    <h4 class="text-success" style="font-weight: 700;">Kiralama Başlatıldı!</h4>
-                    <p class="text-secondary">Sürüşünüz güvenli ve keyifli geçsin.</p>
-                    <i class="fas fa-scooter fa-4x text-success mb-3"></i>
+                <div class="modal-body p-4">
+                    <div class="alert alert-light border border-primary" style="border-radius: 12px;">
+                        <p class="mb-3"><strong>Bu kirayı bitirmek istediğinizden emin misiniz?</strong></p>
+                        <hr>
+                        <div class="row">
+                            <div class="col-6">
+                                <p class="text-muted small">Kiralama ID</p>
+                                <p class="font-weight-bold" id="confirm-kiralama-id">-</p>
+                            </div>
+                            <div class="col-6">
+                                <p class="text-muted small">Toplam Süre</p>
+                                <p class="font-weight-bold" id="confirm-sure-dakika">-</p>
+                            </div>
+                        </div>
+                    </div>
                 </div>
                 <div class="modal-footer border-0">
-                    <button type="button" class="btn btn-outline-success btn-block" data-dismiss="modal" style="border-radius: 12px; font-weight: 600;">Anladım</button>
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal" style="border-radius: 10px;">İptal</button>
+                    <button type="button" class="btn btn-danger" onclick="confirmEndRental()" style="border-radius: 10px;">Evet, Bitir</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="successModal" tabindex="-1" role="dialog" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered" role="document">
+            <div class="modal-content border-0 shadow-lg" style="border-radius: 20px;">
+                <div class="modal-header bg-success text-white" style="border-radius: 20px 20px 0 0;">
+                    <h5 class="modal-title"><i class="fas fa-check-circle"></i> Kiralama Başarıyla Kaydedildi!</h5>
+                    <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="text-center mb-4">
+                        <i class="fas fa-scooter fa-5x text-success"></i>
+                    </div>
+                    <div class="alert alert-light border border-success" style="border-radius: 12px;">
+                        <h5 class="text-success font-weight-bold mb-3">Kiralama Detayları</h5>
+                        <div class="row">
+                            <div class="col-6">
+                                <p class="text-muted small">Kiralama ID</p>
+                                <p class="font-weight-bold" id="success-kiralama-id">-</p>
+                            </div>
+                            <div class="col-6">
+                                <p class="text-muted small">Araç ID</p>
+                                <p class="font-weight-bold" id="success-arac-id">-</p>
+                            </div>
+                        </div>
+                        <hr>
+                        <div>
+                            <p class="text-muted small">Kullanıcı Adı</p>
+                            <p class="font-weight-bold" id="success-user-name">-</p>
+                        </div>
+                        <div>
+                            <p class="text-muted small">E-Mail</p>
+                            <p class="font-weight-bold" id="success-user-email">-</p>
+                        </div>
+                        <div>
+                            <p class="text-muted small">Telefon</p>
+                            <p class="font-weight-bold" id="success-user-phone">-</p>
+                        </div>
+                        <div>
+                            <p class="text-muted small">Başlangıç Saati</p>
+                            <p class="font-weight-bold" id="success-start-time">-</p>
+                        </div>
+                    </div>
+                    <p class="text-secondary text-center small">Sürüşünüz güvenli ve keyifli geçsin. İyi yolculuklar!</p>
+                </div>
+                <div class="modal-footer border-0">
+                    <button type="button" class="btn btn-outline-success btn-block" data-dismiss="modal" style="border-radius: 12px; font-weight: 600;">Tamam</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    </div>
+
+    <div class="modal fade" id="endRentalSuccessModal" tabindex="-1" role="dialog" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered" role="document">
+            <div class="modal-content border-0 shadow-lg" style="border-radius: 20px;">
+                <div class="modal-header bg-success text-white" style="border-radius: 20px 20px 0 0;">
+                    <h5 class="modal-title"><i class="fas fa-check-circle"></i> Kiralama Başarıyla Bitirildi!</h5>
+                    <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="text-center mb-4">
+                        <i class="fas fa-smile-wink fa-5x text-success"></i>
+                    </div>
+                    <div class="alert alert-light border border-success" style="border-radius: 12px;">
+                        <h5 class="text-success font-weight-bold mb-3 text-center">Sürüş Tamamlandı</h5>
+                        <div class="row">
+                            <div class="col-6">
+                                <p class="text-muted small">Kiralama ID</p>
+                                <p class="font-weight-bold" id="end-kiralama-id">-</p>
+                            </div>
+                            <div class="col-6">
+                                <p class="text-muted small">Toplam Süre</p>
+                                <p class="font-weight-bold text-success" id="end-sure-dakika">-</p>
+                            </div>
+                        </div>
+                    </div>
+                    <p class="text-secondary text-center small">Sizi tekrar görmekten mutluluk duyacağız!</p>
+                </div>
+                <div class="modal-footer border-0">
+                    <button type="button" class="btn btn-success btn-block" onclick="closeEndRentalModal()" style="border-radius: 12px; font-weight: 600;">Tamam</button>
                 </div>
             </div>
         </div>
@@ -286,6 +554,20 @@
     <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js"></script>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    
+    <script>
+        // Dark Mode Toggle
+        function toggleDarkMode() {
+            document.body.classList.toggle('dark-mode');
+            localStorage.setItem('darkMode', document.body.classList.contains('dark-mode'));
+        }
+
+        // Load Dark Mode Preference
+        if (localStorage.getItem('darkMode') === 'true') {
+            document.body.classList.add('dark-mode');
+        }
+    </script>
+    
     <script src="app.js"></script> 
 </body>
 </html>

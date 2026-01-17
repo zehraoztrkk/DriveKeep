@@ -122,80 +122,135 @@ function openRentalModal(aracId) {
 
 
 
-// Kiralama Onayı (Simülasyon - Tabloya Geçici Ekleme) - BURAYA YAPIŞTIRDIN
+// Modal kapatma ve verileri yenile fonksiyonu
+function closeEndRentalModal() {
+    console.log('closeEndRentalModal çağrıldı');
+    $('#endRentalSuccessModal').modal('hide');
+    console.log('Modal gizlendi');
+    setTimeout(() => {
+        console.log('Veriler yenileniyor...');
+        loadDashboardData();
+        loadVehicleMarkers();
+    }, 100);
+}
 
+// Aktif kiralama bitirme - Modal göster
+let pendingRentalData = null; // Global değişken - onay modalında kullanacağız
+
+function endRental(kiralamaId, aracId, sureDakika) {
+    pendingRentalData = { kiralamaId, aracId };
+    
+    // Modal'da bilgileri göster
+    document.getElementById('confirm-kiralama-id').textContent = kiralamaId;
+    document.getElementById('confirm-sure-dakika').textContent = `${sureDakika} dakika`;
+    
+    // Modal'ı aç
+    $('#confirmEndRentalModal').modal('show');
+}
+
+// Onay modalından "Evet, Bitir" butonuna basma
+function confirmEndRental() {
+    if (!pendingRentalData) return;
+    
+    const { kiralamaId, aracId } = pendingRentalData;
+    
+    fetch(`${API_URL}/kiralamalar/bitir`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ kiralamaId: parseInt(kiralamaId), aracId: parseInt(aracId) })
+    })
+    .then(res => {
+        if (!res.ok) throw new Error(`Hata: ${res.status}`);
+        return res.json();
+    })
+    .then(data => {
+        console.log('Kiralama başarıyla bitirildi:', data);
+        $('#confirmEndRentalModal').modal('hide');
+        
+        // Başarı modal'ını doldur ve göster
+        document.getElementById('end-kiralama-id').textContent = data.kiralamaId;
+        document.getElementById('end-sure-dakika').textContent = `${data.sureDakika} dakika`;
+        $('#endRentalSuccessModal').modal('show');
+        
+        pendingRentalData = null;
+    })
+    .catch(err => {
+        console.error('Kiralama bitirme hatası:', err);
+        alert('Kiralama bitirilirken hata oluştu: ' + err.message);
+    });
+}
+
+// Kiralama Onayı - VERİTABANINA KAYDET
 function confirmRentalModal() {
-
     const aracId = document.getElementById('modal-arac-id').textContent;
-
     const userName = document.getElementById('modal-user-name').value;
-
-    const mode = document.getElementById('modal-mode').value;
-
-
+    const userEmail = document.getElementById('modal-user-email').value;
+    const userPhone = document.getElementById('modal-user-phone').value;
 
     if (!userName.trim()) {
-
         alert('Lütfen kullanıcı adınızı giriniz.');
-
         return;
-
+    }
+    
+    if (!userEmail.trim()) {
+        alert('Lütfen e-mail adresinizi giriniz.');
+        return;
+    }
+    
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(userEmail)) {
+        alert('Lütfen geçerli bir e-mail adresi giriniz.');
+        return;
+    }
+    
+    if (!userPhone.trim()) {
+        alert('Lütfen telefon numaranızı giriniz.');
+        return;
     }
 
-
-
-    const tbody = document.getElementById('active-rentals-table').getElementsByTagName('tbody')[0];
-
-   
-
-    // 1. Yeni satırı oluştur (Stil vermiyoruz, diğerleriyle aynı kalsın)
-
-    let row = tbody.insertRow(0);
-
-   
-
-    // 2. Değerleri diğer satırların formatına göre hazırla
-
-    const modelMetni = `Sürüş Başladı (${mode})`;
-
-    const baslangicSuresi = "0 dk";
-
-    const baslangicFiyati = "10.00 TL";
-
-
-
-    // 3. Sütunları doldur (Düz metin olarak, badge veya bold etiketleri olmadan)
-
-    row.insertCell(0).textContent = aracId;           // ID sütunu
-
-    row.insertCell(1).textContent = modelMetni;      // Araç Modeli sütunu
-
-    row.insertCell(2).textContent = userName;         // Kullanıcı sütunu
-
-    row.insertCell(3).textContent = baslangicSuresi;  // Süre sütunu
-
-    row.insertCell(4).textContent = baslangicFiyati;  // Fiyat sütunu
-
-
-
-    // 4. Sayaç rakamını güncelle
-
-    const countElement = document.getElementById('active-rentals-count');
-
-    countElement.textContent = parseInt(countElement.textContent || 0) + 1;
-
-
-
-    // 5. Modalı kapat ve temizle
-
-    $('#rentalModal').modal('hide');
-
-    document.getElementById('modal-user-name').value = '';
-
-
-
-    console.log(`Kiralama eklendi: ${aracId}`);
-
+    // VERİTABANINA KAYDET
+    fetch(`${API_URL}/kiralamalar/baslat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ aracId: parseInt(aracId), userName: userName, userEmail: userEmail, userPhone: userPhone })
+    })
+    .then(res => {
+        if (!res.ok) throw new Error(`Hata: ${res.status}`);
+        return res.json();
+    })
+    .then(data => {
+        console.log('Kiralama başarıyla kaydedildi:', data);
+        // Modal'ı kapat
+        $('#rentalModal').modal('hide');
+        document.getElementById('modal-user-name').value = '';
+        document.getElementById('modal-user-email').value = '';
+        document.getElementById('modal-user-phone').value = '';
+        
+        // Success modal'ı doldur ve göster
+        const now = new Date();
+        const timeString = now.toLocaleString('tr-TR');
+        
+        document.getElementById('success-kiralama-id').textContent = data.kiralamaId;
+        document.getElementById('success-arac-id').textContent = aracId;
+        document.getElementById('success-user-name').textContent = userName;
+        document.getElementById('success-user-email').textContent = userEmail;
+        document.getElementById('success-user-phone').textContent = userPhone;
+        document.getElementById('success-start-time').textContent = timeString;
+        
+        // Success modal'ı göster
+        $('#successModal').modal('show');
+        
+        // 2 saniye sonra modal'ı kapat ve verileri yenile
+        setTimeout(() => {
+            $('#successModal').modal('hide');
+            loadDashboardData();
+            loadVehicleMarkers();
+        }, 2000);
+    })
+    .catch(err => {
+        console.error('Kiralama kaydetme hatası:', err);
+        alert('Kiralama kaydedilirken hata oluştu: ' + err.message);
+    });
 }
 
 // 3. API'den Veri Çekme ve Haritada Gösterme
@@ -409,7 +464,18 @@ async function loadDashboardData() {
             row.insertCell().textContent = modelName;
             row.insertCell().textContent = rental.kiralayan_kullanici;
             row.insertCell().textContent = `${rental.sure_dakika || 0} dk`; 
-            row.insertCell().textContent = rental.tahmini_fiyat || "0.00 TL"; 
+            row.insertCell().textContent = rental.tahmini_fiyat || "0.00 TL";
+            
+            // Bitir butonu ekle
+            const actionCell = row.insertCell();
+            const endButton = document.createElement('button');
+            endButton.className = 'btn btn-sm btn-danger';
+            endButton.textContent = 'Bitir';
+            endButton.style.borderRadius = '6px';
+            endButton.style.padding = '4px 8px';
+            endButton.style.fontSize = '0.85rem';
+            endButton.onclick = () => endRental(rental.kiralama_id, rental.arac_id, rental.sure_dakika);
+            actionCell.appendChild(endButton);
         });
 
         // --- 3. SAĞ PANEL ALT: DÜŞÜK BATARYA ---
@@ -442,6 +508,12 @@ async function loadDashboardData() {
 // Uygulama Başlatma
 loadVehicleMarkers();
 loadDashboardData();
+
+// endRentalSuccessModal kapandığında verileri yenile
+$('#endRentalSuccessModal').on('hidden.bs.modal', function () {
+    loadDashboardData();
+    loadVehicleMarkers();
+});
 // Otomatik güncellemeleri başlat
 setInterval(loadVehicleMarkers, 60000); 
 setInterval(loadDashboardData, 30000);

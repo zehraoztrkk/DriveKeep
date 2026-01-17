@@ -20,9 +20,9 @@ app.get('/api/araclar/konum', async (req, res) => {
         A.durum, 
         ST_X(KT.geometri) AS boylam, 
         ST_Y(KT.geometri) AS enlem
-    FROM Arac A
-    INNER JOIN AracTuru AT ON A.tur_id = AT.tur_id
-    INNER JOIN LATERAL (SELECT geometri FROM KonumTakip WHERE arac_id = A.arac_id ORDER BY zaman_damgasi DESC LIMIT 1) AS KT ON TRUE
+    FROM arac A
+    INNER JOIN aracturu AT ON A.tur_id = AT.tur_id
+    INNER JOIN LATERAL (SELECT geometri FROM konumtakip WHERE arac_id = A.arac_id ORDER BY zaman_damgasi DESC LIMIT 1) AS KT ON TRUE
     WHERE A.durum IN ('bos', 'kiralandi', 'bakim');
   `;
   try {
@@ -48,11 +48,11 @@ app.get('/api/araclar/yakin', async (req, res) => {
             ROUND(ST_Distance(KT.geometri::geography, (SELECT user_geom FROM user_location)::geography)::NUMERIC, 2) AS mesafe_metre,
             ST_Y(KT.geometri) AS enlem,  
             ST_X(KT.geometri) AS boylam  
-        FROM Arac A
-        JOIN AracTuru AT ON A.tur_id = AT.tur_id
+        FROM arac A
+        JOIN aracturu AT ON A.tur_id = AT.tur_id
         INNER JOIN LATERAL (
             SELECT geometri 
-            FROM KonumTakip 
+            FROM konumtakip 
             WHERE arac_id = A.arac_id 
             ORDER BY zaman_damgasi DESC LIMIT 1
         ) AS KT ON TRUE
@@ -81,9 +81,9 @@ app.get('/api/kiralamalar/gecmis', async (req, res) => {
             k.baslangic_zamani,
             k.bitis_zamani,
             k.toplam_ucret AS tahmini_fiyat
-        FROM Kiralama k
-        JOIN Arac a ON k.arac_id = a.arac_id
-        JOIN Kullanici u ON k.kullanici_id = u.kullanici_id
+        FROM kiralama k
+        JOIN arac a ON k.arac_id = a.arac_id
+        JOIN kullanici u ON k.kullanici_id = u.kullanici_id
         WHERE k.bitis_zamani IS NOT NULL
         ORDER BY k.bitis_zamani DESC;
     `;
@@ -110,9 +110,9 @@ app.get('/api/kiralamalar/aktif', async (req, res) => {
             EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - K.baslangic_zamani)) AS sure_saniye,
             FM.dakika_ucreti, 
             FM.acilis_ucreti 
-        FROM Kiralama K 
-        JOIN Kullanici U ON K.kullanici_id = U.kullanici_id
-        JOIN Arac A ON K.arac_id = A.arac_id
+        FROM kiralama K 
+        JOIN kullanici U ON K.kullanici_id = U.kullanici_id
+        JOIN arac A ON K.arac_id = A.arac_id
         JOIN fiyatlandirmamodelleri FM ON A.fiyat_model_id = FM.model_id
         WHERE K.bitis_zamani IS NULL
         ORDER BY A.arac_id, K.baslangic_zamani DESC; 
@@ -139,7 +139,7 @@ app.get('/api/kiralamalar/aktif', async (req, res) => {
 // 5. Uç Nokta: Şarj Gerektiren Araçları Bulma
 app.get('/api/bakim/dusuk-batarya', async (req, res) => {
   const sqlQuery = `SELECT A.arac_id, A.model, A.batarya_seviyesi
-    FROM Arac A
+    FROM arac A
     WHERE A.tur_id = 1 AND A.durum = 'bos' AND A.batarya_seviyesi <= 20.00;
   `;
   try {
@@ -152,28 +152,44 @@ app.get('/api/bakim/dusuk-batarya', async (req, res) => {
 
 // 6. Uç Nokta: Kiralama Başlatma
 app.post('/api/kiralamalar/baslat', async (req, res) => {
-  const { aracId, userName } = req.body;
-  if (!aracId || !userName) {
-    return res.status(400).send({ message: 'Araç ID ve kullanıcı adı gereklidir.' });
+  const { aracId, userName, userEmail, userPhone } = req.body;
+  console.log('Kiralama isteği alındı:', { aracId, userName, userEmail, userPhone });
+  
+  if (!aracId || !userName || !userEmail || !userPhone) {
+    return res.status(400).send({ message: 'Araç ID, kullanıcı adı, e-mail ve telefon gereklidir.' });
   }
   try {
-    let userResult = await db.query('SELECT kullanici_id FROM Kullanici WHERE ad_soyad = $1', [userName]);
+    console.log('Kullanıcı sorgulanıyor:', userEmail);
+    // Email'e göre sorgu yap (email unique, ad değil)
+    let userResult = await db.query('SELECT kullanici_id FROM kullanici WHERE eposta = $1', [userEmail]);
     let kullaniciId;
     if (userResult.rows.length === 0) {
-      const insertUser = await db.query('INSERT INTO Kullanici (ad_soyad) VALUES ($1) RETURNING kullanici_id', [userName]);
+      console.log('Yeni kullanıcı oluşturuluyor:', userName);
+      const insertUser = await db.query('INSERT INTO kullanici (ad_soyad, eposta, telefon) VALUES ($1, $2, $3) RETURNING kullanici_id', [userName, userEmail, userPhone]);
       kullaniciId = insertUser.rows[0].kullanici_id;
+      console.log('Yeni kullanıcı oluşturuldu, ID:', kullaniciId, 'Email:', userEmail, 'Telefon:', userPhone);
     } else {
       kullaniciId = userResult.rows[0].kullanici_id;
+      console.log('Mevcut kullanıcı bulundu, ID:', kullaniciId);
+      // Telefon güncelleme yapmıyoruz çünkü telefon da UNIQUE
     }
+    
+    console.log('Kiralama oluşturuluyor:', { kullaniciId, aracId });
     const insertRental = await db.query(
-      'INSERT INTO Kiralama (kullanici_id, arac_id, baslangic_zamani) VALUES ($1, $2, CURRENT_TIMESTAMP) RETURNING kiralama_id',
+      'INSERT INTO kiralama (kullanici_id, arac_id, baslangic_zamani) VALUES ($1, $2, CURRENT_TIMESTAMP) RETURNING kiralama_id',
       [kullaniciId, aracId]
     );
-    await db.query('UPDATE Arac SET durum = $1 WHERE arac_id = $2', ['kiralandi', aracId]);
+    console.log('Kiralama oluşturuldu, ID:', insertRental.rows[0].kiralama_id);
+    
+    console.log('Araç durumu güncelleniyor...');
+    await db.query('UPDATE arac SET durum = $1 WHERE arac_id = $2', ['kiralandi', aracId]);
+    console.log('Araç durumu güncellendi');
+    
     res.json({ message: 'Kiralama başlatıldı.', kiralamaId: insertRental.rows[0].kiralama_id });
   } catch (err) {
-    console.error('Kiralama başlatma hatası:', err);
-    res.status(500).send({ message: 'Kiralama başlatılamadı.' });
+    console.error('Kiralama başlatma hatası:', err.message);
+    console.error('Detaylı hata:', err);
+    res.status(500).send({ message: 'Kiralama başlatılamadı: ' + err.message });
   }
 });
 
@@ -190,9 +206,9 @@ app.get('/api/kiralamalar/gecmis', async (req, res) => {
             EXTRACT(EPOCH FROM (K.bitis_zamani - K.baslangic_zamani)) AS sure_saniye,
             FM.dakika_ucreti, 
             FM.acilis_ucreti 
-        FROM Kiralama K 
-        JOIN Kullanici U ON K.kullanici_id = U.kullanici_id
-        JOIN Arac A ON K.arac_id = A.arac_id
+        FROM kiralama K 
+        JOIN kullanici U ON K.kullanici_id = U.kullanici_id
+        JOIN arac A ON K.arac_id = A.arac_id
         JOIN fiyatlandirmamodelleri FM ON A.fiyat_model_id = FM.model_id
         WHERE K.bitis_zamani IS NOT NULL
         ORDER BY K.bitis_zamani DESC; -- En son biten sürüş en üstte görünür
@@ -216,6 +232,50 @@ app.get('/api/kiralamalar/gecmis', async (req, res) => {
         console.error('Geçmiş kiralama sorgu hatası:', err);
         res.status(500).send({ message: 'Geçmiş veriler alınamadı.' });
     }
+});
+
+// 8. Uç Nokta: Kiralama Bitirme
+app.post('/api/kiralamalar/bitir', async (req, res) => {
+  const { kiralamaId, aracId } = req.body;
+  console.log('Kiralama bitirme isteği alındı:', { kiralamaId, aracId });
+  
+  if (!kiralamaId || !aracId) {
+    return res.status(400).send({ message: 'Kiralama ID ve Araç ID gereklidir.' });
+  }
+  
+  try {
+    // Kiralama bitirme
+    console.log('Kiralama güncelleniyor:', kiralamaId);
+    const updateRental = await db.query(
+      'UPDATE kiralama SET bitis_zamani = CURRENT_TIMESTAMP WHERE kiralama_id = $1 RETURNING kiralama_id, baslangic_zamani, bitis_zamani',
+      [kiralamaId]
+    );
+    
+    if (updateRental.rows.length === 0) {
+      return res.status(404).send({ message: 'Kiralama bulunamadı.' });
+    }
+    
+    // Araç durumunu güncelle
+    console.log('Araç durumu güncelleniyor:', aracId);
+    await db.query('UPDATE arac SET durum = $1 WHERE arac_id = $2', ['bos', aracId]);
+    
+    const rentalData = updateRental.rows[0];
+    const sureSaniye = Math.floor((new Date(rentalData.bitis_zamani) - new Date(rentalData.baslangic_zamani)) / 1000);
+    const sureDakika = Math.ceil(sureSaniye / 60);
+    
+    console.log('Kiralama başarıyla bitirildi');
+    res.json({ 
+      message: 'Kiralama başarıyla bitirildi.', 
+      kiralamaId: rentalData.kiralama_id,
+      sureDakika: sureDakika,
+      baslangic_zamani: rentalData.baslangic_zamani,
+      bitis_zamani: rentalData.bitis_zamani
+    });
+  } catch (err) {
+    console.error('Kiralama bitirme hatası:', err.message);
+    console.error('Detaylı hata:', err);
+    res.status(500).send({ message: 'Kiralama bitirilirken hata oluştu: ' + err.message });
+  }
 });
 
 app.listen(port, () => {

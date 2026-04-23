@@ -70,31 +70,7 @@ app.get('/api/araclar/yakin', async (req, res) => {
     }
 });
 
-// 3. Uç Nokta: Geçmiş Kiralamaları Getirme (Bitiş zamanı NULL OLMAYANLAR)
-app.get('/api/kiralamalar/gecmis', async (req, res) => {
-    const sql = `
-        SELECT 
-            k.kiralama_id,
-            k.arac_id,
-            a.model AS kiralanan_arac,
-            u.ad_soyad AS kiralayan_kullanici,
-            k.baslangic_zamani,
-            k.bitis_zamani,
-            k.toplam_ucret AS tahmini_fiyat
-        FROM kiralama k
-        JOIN arac a ON k.arac_id = a.arac_id
-        JOIN kullanici u ON k.kullanici_id = u.kullanici_id
-        WHERE k.bitis_zamani IS NOT NULL
-        ORDER BY k.bitis_zamani DESC;
-    `;
-    try {
-        const { rows } = await db.query(sql);
-        res.json(rows);
-    } catch (err) {
-        console.error('Geçmiş kiralama sorgu hatası:', err);
-        res.status(500).json({ error: 'Veritabanı hatası' });
-    }
-});
+
 
 // 4. Uç Nokta: Aktif Kiralamaları Listeleme ve Fiyat Hesaplama
 // Not: Bu endpoint zaten mevcuttu, talep ettiğiniz basitleştirilmiş haliyle veya 
@@ -160,18 +136,33 @@ app.post('/api/kiralamalar/baslat', async (req, res) => {
   }
   try {
     console.log('Kullanıcı sorgulanıyor:', userEmail);
-    // Email'e göre sorgu yap (email unique, ad değil)
+    // Email'e göre sorgu yap
     let userResult = await db.query('SELECT kullanici_id FROM kullanici WHERE eposta = $1', [userEmail]);
     let kullaniciId;
+    
     if (userResult.rows.length === 0) {
-      console.log('Yeni kullanıcı oluşturuluyor:', userName);
-      const insertUser = await db.query('INSERT INTO kullanici (ad_soyad, eposta, telefon) VALUES ($1, $2, $3) RETURNING kullanici_id', [userName, userEmail, userPhone]);
-      kullaniciId = insertUser.rows[0].kullanici_id;
-      console.log('Yeni kullanıcı oluşturuldu, ID:', kullaniciId, 'Email:', userEmail, 'Telefon:', userPhone);
+      // Yeni email - telefon zaten var mı kontrol et
+      const phoneCheck = await db.query('SELECT kullanici_id FROM kullanici WHERE telefon = $1', [userPhone]);
+      
+      if (phoneCheck.rows.length > 0) {
+        // Telefon varsa, o kullanıcıyı kullan ve email'i güncelle
+        kullaniciId = phoneCheck.rows[0].kullanici_id;
+        console.log('Telefon ile kullanıcı bulundu, ID:', kullaniciId);
+        await db.query('UPDATE kullanici SET eposta = $1, ad_soyad = $2 WHERE kullanici_id = $3', [userEmail, userName, kullaniciId]);
+        console.log('Kullanıcı bilgileri güncellendi');
+      } else {
+        // Tamamen yeni kullanıcı oluştur
+        console.log('Yeni kullanıcı oluşturuluyor:', userName);
+        const insertUser = await db.query('INSERT INTO kullanici (ad_soyad, eposta, telefon) VALUES ($1, $2, $3) RETURNING kullanici_id', [userName, userEmail, userPhone]);
+        kullaniciId = insertUser.rows[0].kullanici_id;
+        console.log('Yeni kullanıcı oluşturuldu, ID:', kullaniciId, 'Email:', userEmail, 'Telefon:', userPhone);
+      }
     } else {
+      // Email zaten var - o kullanıcıyı kullan
       kullaniciId = userResult.rows[0].kullanici_id;
       console.log('Mevcut kullanıcı bulundu, ID:', kullaniciId);
-      // Telefon güncelleme yapmıyoruz çünkü telefon da UNIQUE
+      // Telefon ve ad-soyadı güncelle
+      await db.query('UPDATE kullanici SET telefon = $1, ad_soyad = $2 WHERE kullanici_id = $3', [userPhone, userName, kullaniciId]);
     }
     
     console.log('Kiralama oluşturuluyor:', { kullaniciId, aracId });

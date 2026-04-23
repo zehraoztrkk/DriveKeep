@@ -183,36 +183,57 @@ function confirmEndRental() {
 // Kiralama Onayı - VERİTABANINA KAYDET
 function confirmRentalModal() {
     const aracId = document.getElementById('modal-arac-id').textContent;
-    const userName = document.getElementById('modal-user-name').value;
-    const userEmail = document.getElementById('modal-user-email').value;
-    const userPhone = document.getElementById('modal-user-phone').value;
+    let userName = document.getElementById('modal-user-name').value.trim();
+    let userEmail = document.getElementById('modal-user-email').value.trim();
+    let userPhone = document.getElementById('modal-user-phone').value.trim();
 
-    if (!userName.trim()) {
+    // 1. İsim kontrolü
+    if (!userName) {
         alert('Lütfen kullanıcı adınızı giriniz.');
         return;
     }
     
-    if (!userEmail.trim()) {
+    // 2. Email kontrolü
+    if (!userEmail) {
         alert('Lütfen e-mail adresinizi giriniz.');
         return;
     }
     
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(userEmail)) {
-        alert('Lütfen geçerli bir e-mail adresi giriniz.');
-        return;
-    }
+    // Email'i @gmail.com ekleyerek tamamla
+    userEmail = userEmail + '@gmail.com';
     
-    if (!userPhone.trim()) {
+    // 3. Telefon kontrolü
+    if (!userPhone) {
         alert('Lütfen telefon numaranızı giriniz.');
         return;
     }
+    
+    // Telefon formatı: 0551 XXX XX XX (11 rakam olmalı)
+    const phoneDigits = userPhone.replace(/\D/g, '');
+    if (phoneDigits.length !== 10) {
+        alert('Lütfen geçerli bir telefon numarası giriniz (10 rakam).');
+        return;
+    }
+    
+    // Telefonu 0551 XXX XX XX formatında düzenle
+    const formattedPhone = '0551' + phoneDigits;
+    
+    // 4. İsimin ilk harflerini büyük yap (Ad Soyad)
+    const nameParts = userName.split(' ').filter(part => part.length > 0);
+    const capitalizedName = nameParts.map(part => 
+        part.charAt(0).toUpperCase() + part.slice(1).toLowerCase()
+    ).join(' ');
 
     // VERİTABANINA KAYDET
     fetch(`${API_URL}/kiralamalar/baslat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ aracId: parseInt(aracId), userName: userName, userEmail: userEmail, userPhone: userPhone })
+        body: JSON.stringify({ 
+            aracId: parseInt(aracId), 
+            userName: capitalizedName, 
+            userEmail: userEmail, 
+            userPhone: formattedPhone 
+        })
     })
     .then(res => {
         if (!res.ok) throw new Error(`Hata: ${res.status}`);
@@ -232,9 +253,9 @@ function confirmRentalModal() {
         
         document.getElementById('success-kiralama-id').textContent = data.kiralamaId;
         document.getElementById('success-arac-id').textContent = aracId;
-        document.getElementById('success-user-name').textContent = userName;
+        document.getElementById('success-user-name').textContent = capitalizedName;
         document.getElementById('success-user-email').textContent = userEmail;
-        document.getElementById('success-user-phone').textContent = userPhone;
+        document.getElementById('success-user-phone').textContent = formattedPhone;
         document.getElementById('success-start-time').textContent = timeString;
         
         // Success modal'ı göster
@@ -504,7 +525,139 @@ async function loadDashboardData() {
         console.error("Genel Rapor Yükleme Hatası:", error);
     }
 }
+document.getElementById('modal-user-name').addEventListener('input', function (e) {
+    let value = e.target.value;
+    
+    // Her kelimenin ilk harfini büyük, diğerlerini küçük yap
+    let formattedValue = value.split(' ').map(word => {
+        if (word.length > 0) {
+            return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+        }
+        return word;
+    }).join(' ');
 
+    // Kursör pozisyonunu kaybetmemek için güncelliyoruz
+    e.target.value = formattedValue;
+});
+
+// Sayfa veya Modal yüklendiğinde çalışması için garantiye alıyoruz
+document.addEventListener('input', function (e) {
+    
+    // Sadece hedef input "modal-user-email" ise çalış
+    if (e.target && e.target.id === 'modal-user-email') {
+        const emailInput = e.target;
+        const quickList = document.getElementById('email-quick-list');
+        const domains = ['@gmail.com', '@hotmail.com', '@outlook.com', '@icloud.com'];
+        
+        const val = emailInput.value;
+        quickList.innerHTML = ''; // Her yazımda listeyi temizle
+
+        // Eğer kullanıcı bir şeyler yazdıysa ve henüz @ koymadıysa butonları çıkar
+        if (val.length > 0 && !val.includes('@')) {
+            domains.forEach(domain => {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                // Bootstrap sınıfları ve ekstra stil
+                btn.className = 'btn btn-sm btn-outline-primary';
+                btn.style.borderRadius = '20px';
+                btn.style.fontSize = '12px';
+                btn.style.padding = '2px 10px';
+                btn.innerText = domain;
+
+                // Tıklama olayı
+                btn.onmousedown = function(event) {
+                    event.preventDefault(); // Input'tan odağın kaçmasını engeller
+                    emailInput.value = val + domain;
+                    quickList.innerHTML = '';
+                };
+                
+                quickList.appendChild(btn);
+            });
+        }
+    }
+});
+
+// Input'tan çıkıldığında butonları temizle (Blur yerine mousedown kullandığımız için güvenli)
+document.addEventListener('focusout', function(e) {
+    if (e.target.id === 'modal-user-email') {
+        // Kısa bir gecikme veriyoruz ki mousedown işlemi tamamlanabilsin
+        setTimeout(() => {
+            const qList = document.getElementById('email-quick-list');
+            if(qList) qList.innerHTML = '';
+        }, 200);
+    }
+});
+// E-posta inputunu seçelim
+const emailInput = document.getElementById('modal-user-email');
+
+emailInput.addEventListener('keydown', function(e) {
+    // 1. Kullanıcı boşluk tuşuna (Space) bastığı anda engelle
+    if (e.key === " " || e.keyCode === 32) {
+        e.preventDefault();
+        return false;
+    }
+});
+
+emailInput.addEventListener('input', function(e) {
+    // 2. Eğer kullanıcı boşluk içeren bir metni yapıştırırsa boşlukları anında temizle
+    let value = e.target.value;
+    if (value.includes(" ")) {
+        e.target.value = value.replace(/\s/g, "");
+    }
+    
+    // ... Burada senin önceki e-posta tamamlama (buton gösterme) kodların devam edebilir ...
+});
+
+
+const phoneInput = document.getElementById('modal-user-phone');
+
+phoneInput.addEventListener('input', function (e) {
+    // 1. Sadece rakamları al ve maksimum 11 hane ile sınırla
+    let input = e.target.value.replace(/\D/g, '');
+    
+    // 2. İlk rakam 0 değilse başına 0 ekle
+    if (input.length > 0 && input[0] !== '0') {
+        input = '0' + input;
+    }
+    
+    // 3. Maksimum 11 karakteri geçmesin (05xx xxx xx xx = 11 hane)
+    input = input.substring(0, 11);
+
+    // 4. Formatlama mantığı
+    let size = input.length;
+    let formatted = "";
+
+    if (size > 0) {
+        // İlk grup: (0XXX
+        formatted += "(" + input.substring(0, 4);
+    }
+    if (size >= 5) {
+        // Parantezi kapat ve ikinci grubu ekle: (0XXX) XXX
+        formatted += ") " + input.substring(4, 7);
+    }
+    if (size >= 8) {
+        // Tire ekle ve üçüncü grubu ekle: (0XXX) XXX-XX
+        formatted += "-" + input.substring(7, 9);
+    }
+    if (size >= 10) {
+        // Son tireyi ekle ve son grubu ekle: (0XXX) XXX-XX-XX
+        formatted += "-" + input.substring(9, 11);
+    }
+
+    // 5. Değeri inputa geri gönder
+    e.target.value = formatted;
+});
+
+// Silme yaparken parantez veya tireye takılmayı önleyen akıllı silme
+phoneInput.addEventListener('keydown', function(e) {
+    const val = e.target.value;
+    if (e.key === 'Backspace') {
+        // Eğer silinen karakter format karakteriyse bir önceki rakamı da sil
+        if (val.endsWith(' ') || val.endsWith('-') || val.endsWith('(')) {
+            // Hiçbir şey yapma, input event'i zaten rakamı silince formatı düzeltecek
+        }
+    }
+});
 // Uygulama Başlatma
 loadVehicleMarkers();
 loadDashboardData();

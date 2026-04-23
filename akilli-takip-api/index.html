@@ -405,11 +405,13 @@
                     </div>
                     <div class="form-group">
                         <label for="modal-user-email">E-Mail:</label>
-                        <input type="email" class="form-control" id="modal-user-email" placeholder="E-Mail Adresiniz" style="border-radius: 10px;">
+                        <input type="email" class="form-control" id="modal-user-email" placeholder="ornek@mail.com" autocomplete="off">
+                        <div id="email-quick-list" class="mt-2 d-flex flex-wrap" style="gap: 5px;"></div>
                     </div>
                     <div class="form-group">
                         <label for="modal-user-phone">Telefon:</label>
-                        <input type="tel" class="form-control" id="modal-user-phone" placeholder="Telefon Numarası" style="border-radius: 10px;">
+                        <input type="tel" class="form-control" id="modal-user-phone" 
+                            placeholder="(0XXX) XXX-XX-XX" maxlength="16" autocomplete="off">
                     </div>
                     <div class="form-group">
                         <label for="modal-mode">Sürüş Modu:</label>

@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>API Test</title>
+</head>
+<body>
+    <h1>Rental API Test</h1>
+    <button onclick="testRental()">Test Rental Creation</button>
+    <pre id="output"></pre>
+
+    <script>
+        async function testRental() {
+            const output = document.getElementById('output');
+            try {
+                output.textContent = 'Testing rental API...';
+                const response = await fetch('http://localhost:3000/api/kiralamalar/baslat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        aracId: 1,
+                        userName: 'Test User',
+                        userEmail: 'test789@example.com',
+                        userPhone: '+905551234567'
+                    })
+                });
+                
+                const data = await response.json();
+                output.textContent = `Status: ${response.status}\n\n${JSON.stringify(data, null, 2)}`;
+            } catch (err) {
+                output.textContent = `Error: ${err.message}`;
+            }
+        }
+    </script>
+</body>
+</html>
